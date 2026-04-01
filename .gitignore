@@ -1,0 +1,6 @@
+# ===== Virtual Environments =====
+venv/
+.env/
+
+#======= DB Files =======
+.db.sqlite3/

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f0f8ff; color: #333; }
+    .container { max-width: 600px; margin: auto; padding: 20px; background: #ffffff; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1);}
+    .header { background-color: #4CAF50; color: white; padding: 10px; text-align: center; border-radius: 8px 8px 0 0;}
+    .otp { font-size: 28px; font-weight: bold; color: #FF5722; text-align: center; margin: 20px 0; }
+    .footer { font-size: 12px; color: #888; text-align: center; margin-top: 20px; }
+    .btn { background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">Welcome to Packages!</div>
+    <p>Hello {{ user_email }},</p>
+    <p>Thank you for registering. Use the OTP below to verify your account:</p>
+    <div class="otp">{{ otp_code }}</div>
+    <p>This OTP is valid for 5 minutes only.</p>
+    <p>Need help? <a class="btn" href="mailto:support@packages.com">Contact Support</a></p>
+    <div class="footer">© 2026 Packages. All rights reserved.</div>
+  </div>
+</body>
+</html>
