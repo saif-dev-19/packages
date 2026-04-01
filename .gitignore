@@ -3,4 +3,4 @@ venv/
 .env/
 
 #======= DB Files =======
-.db.sqlite3/
+db.sqlite3
