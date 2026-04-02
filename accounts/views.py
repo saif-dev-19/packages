@@ -7,15 +7,13 @@ from rest_framework import status
 from otp.email_services import send_otp_email
 from utils.response import error_response, success_response
 
-from .serializers import ChangePasswordSerializer, RegisterSerializer, ResetPasswordConfirmSerializer, VerifyOtpSerializer,ResetPasswordSerializer
+from .serializers import ChangePasswordSerializer, RegisterSerializer, ResetPasswordConfirmSerializer,ResetPasswordSerializer
 from .models import User
-
-from otp.services import verify_otp
-from otp.models import OtpPurpose
+from otp.choices import OtpPurpose, OtpChannel
+from otp.services import OTPService
 from rest_framework.throttling import UserRateThrottle
 from django.db import transaction
 from otp.throttles import RedisOtpThrottle
-from otp.services import can_send_otp, genarate_otp
 from django.contrib.auth import authenticate, get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated
@@ -43,23 +41,34 @@ class RegisterView(APIView):
             user, created = User.objects.get_or_create(email=email)
 
             if not created and user.is_active:
-                return success_response(message="Email already registered", http_status=status.HTTP_400_BAD_REQUEST)
+                return success_response(
+                    message="Email already registered",
+                    http_status=status.HTTP_400_BAD_REQUEST,
+                )
 
             user.set_password(password)
-            if user.is_staff or user.is_superuser:
-                user.is_active = True
-            else:
-                user.is_active = False
+            # staff/superuser are active immediately
+            user.is_active = user.is_staff or user.is_superuser
             user.save()
 
-        can_send, error = can_send_otp(user, OtpPurpose.REGISTRATION)
-        if not can_send:
-            return error_response(errors={"error": error},message="Otp can not able to send.", http_status=status.HTTP_400_BAD_REQUEST)
+        # Send OTP via email using OTPService
+        success, msg = OTPService.send_otp(
+            email=email,
+            purpose=OtpPurpose.REGISTRATION,
+            channel=OtpChannel.EMAIL
+        )
 
-        otp = genarate_otp(user, OtpPurpose.REGISTRATION)
-        send_otp_email(user, otp)
+        if not success:
+            return error_response(
+                errors={"error": msg},
+                message="OTP could not be sent",
+                http_status=status.HTTP_400_BAD_REQUEST
+            )
 
-        return success_response(message="OTP sent", http_status=status.HTTP_201_CREATED)
+        return success_response(
+            message="OTP sent successfully",
+            http_status=status.HTTP_201_CREATED
+        )
 
 #============================
 #Login View
@@ -113,6 +122,8 @@ class ChangePasswordView(APIView):
 #=============================
 #Reset password view
 #=============================
+# accounts/views.py
+
 class ResetPasswordRequestView(APIView):
     throttle_classes = [RedisOtpThrottle]
 
@@ -122,26 +133,33 @@ class ResetPasswordRequestView(APIView):
 
         email = serializer.validated_data["email"]
 
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
-            # Do not reveal if user exists
-            return error_response(errors={"message": "If the email exists, an OTP has been sent"}, http_status=status.HTTP_200_OK)
+        # Do not reveal user existence
+        user_exists = User.objects.filter(email=email).exists()
 
-        can_send, error = can_send_otp(user, OtpPurpose.PASSWORD_RESET)
-        if not can_send:
-            return error_response(errors={"error": error}, http_status=status.HTTP_400_BAD_REQUEST)
+        if user_exists:
+            success, msg = OTPService.send_otp(
+                email=email,
+                purpose=OtpPurpose.PASSWORD_RESET,
+                channel=OtpChannel.EMAIL
+            )
 
-        otp = genarate_otp(user, OtpPurpose.PASSWORD_RESET)
-        send_otp_email(user, otp)
+            if not success:
+                return error_response(
+                    errors={"error": msg},
+                    http_status=status.HTTP_400_BAD_REQUEST
+                )
 
-        return error_response(errors={"message": "OTP sent if user exists"}, http_status=status.HTTP_200_OK)
+        return success_response(
+            message="If the email exists, an OTP has been sent",
+            http_status=status.HTTP_200_OK
+        )
 
 
 #=============================
 #Reset password confirm view
 #=============================
 class ResetPasswordConfirmView(APIView):
+
     def post(self, request):
         serializer = ResetPasswordConfirmSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -153,17 +171,30 @@ class ResetPasswordConfirmView(APIView):
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
-            return error_response(errors={"error": "Invalid email"}, http_status=status.HTTP_400_BAD_REQUEST)
+            return error_response(
+                errors={"error": "Invalid email"},
+                http_status=status.HTTP_400_BAD_REQUEST
+            )
 
-        success, message = verify_otp(user, otp_code, OtpPurpose.PASSWORD_RESET)
+        success, message = OTPService.verify_otp(
+            email=email,
+            purpose=OtpPurpose.PASSWORD_RESET,
+            submitted_otp=otp_code
+        )
 
         if not success:
-            return error_response(errors={"error": message}, http_status=status.HTTP_400_BAD_REQUEST)
+            return error_response(
+                errors={"error": message},
+                http_status=status.HTTP_400_BAD_REQUEST
+            )
 
         user.set_password(new_password)
         user.save()
 
-        return success_response(message="Password reset successfully")
+        return success_response(
+            message="Password reset successfully",
+            http_status=status.HTTP_200_OK
+        )
 
 
 #=============================
@@ -186,59 +217,64 @@ class LogoutView(APIView):
 #============================
 #OTP Verification View
 #============================  
-from otp.models import OTP, OtpPurpose
+# accounts/views.py
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
 
+from otp.services import OTPService
+from accounts.serializers import OtpSerializer, OtpVerifySerializer
 
-class VerifyOtpView(APIView):
-    throttle_classes = [VerifyOtpThrottle]
-
+class OTPView(APIView):
+    """
+    Get / Resend OTP
+    """
     def post(self, request):
-        serializer = VerifyOtpSerializer(data=request.data)
+        serializer = OtpSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         email = serializer.validated_data["email"]
-        code = serializer.validated_data["otp"]
+        purpose = serializer.validated_data["purpose"]
+        channel = serializer.validated_data["channel"]
 
-        success, message, purpose = verify_otp(email, code)
+        if purpose == OtpPurpose.REGISTRATION:
+            if User.objects.filter(email=email, is_active=True).exists():
+                return Response({"error": "Email already verified"}, status=status.HTTP_400_BAD_REQUEST)
+
+            if not User.objects.filter(email=email).exists():
+                return Response({"error": "User with this email does not exist"}, status=status.HTTP_400_BAD_REQUEST)
+        
+            
+        success, msg = OTPService.send_otp(email, purpose, channel)
 
         if not success:
-            return error_response({"error": message}, 400)
-
-        user = User.objects.filter(email=email).first()
-        if not user:
-            return error_response({"error": "User not found"}, 404)
-
-        # handle based on purpose internally
-        if purpose == OtpPurpose.REGISTRATION:
-            user.is_active = True
-            user.save()
-
-        return success_response(message="OTP verified successfully")
+            return Response({"error": msg}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"message": msg}, status=status.HTTP_200_OK)
 
 
-class ResendOtpView(APIView):
-    throttle_classes = [RedisOtpThrottle]
-
+class OTPVerifyView(APIView):
+    """
+    Verify OTP
+    """
     def post(self, request):
-        email = request.data.get("email")
-        user = User.objects.filter(email=email).first()
+        serializer = OtpVerifySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-        otp_purpose = OTP.objects.filter(user=user, is_verified=False).order_by("-created_at").first()
-        if not email:
-            return error_response({"error": "Email is required"}, http_status=400)
+        email = serializer.validated_data["email"]
+        purpose = serializer.validated_data["purpose"]
+        otp = serializer.validated_data["otp"]
 
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
-            return error_response({"error": "User not found"}, http_status=404)
-        
-        print("OTP Purpose==============+++++++>", otp_purpose)
+        success, msg = OTPService.verify_otp(email, purpose, otp)
 
-        can_send, error = can_send_otp(user, otp_purpose.purpose )
-        if not can_send:
-            return error_response({"error": error}, http_status=400)
+        if success:
+            if purpose == OtpPurpose.REGISTRATION:
+                try:
+                    user = User.objects.get(email=email)
+                    user.is_active = True
+                    user.save()
+                except User.DoesNotExist:
+                    pass
 
-        otp = genarate_otp(user, otp_purpose.purpose if otp_purpose else None)
-        send_otp_email(user, otp)
-
-        return success_response(message="OTP resent successfully")
+        if not success:
+            return Response({"error": msg}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"message": msg}, status=status.HTTP_200_OK)

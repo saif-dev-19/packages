@@ -179,6 +179,9 @@ CACHES = {
     }
 }
 
+REDIS_HOST = Config.REDIS_URL.split("//")[1].split(":")[0]
+REDIS_PORT = Config.REDIS_PORT
+REDIS_DB = Config.REDIS_DB
 # ========================================
 # Other settings from config
 # ========================================

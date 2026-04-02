@@ -44,6 +44,15 @@ class ResetPasswordConfirmSerializer(serializers.Serializer):
 #============================
 ##OTP verification serializer
 #============================
-class VerifyOtpSerializer(serializers.Serializer):
+from rest_framework import serializers
+from otp.choices import OtpPurpose, OtpChannel
+
+class OtpSerializer(serializers.Serializer):
     email = serializers.EmailField()
+    purpose = serializers.ChoiceField(choices=OtpPurpose.choices)   #It will be given from frontend hardcoded to know the purpose of OTP 
+    channel = serializers.ChoiceField(choices=OtpChannel.choices)  #It will be given from frontend hardcoded to know the channel of OTP (email/phone)
+
+class OtpVerifySerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    purpose = serializers.ChoiceField(choices=OtpPurpose.choices) #It will be given from frontend hardcoded to know the purpose of OTP 
     otp = serializers.CharField(max_length=6)
