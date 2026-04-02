@@ -4,5 +4,6 @@ from accounts import urls as accounts_urls
 
 urlpatterns = [
     path("auth/", include(accounts_urls), name="accounts"),
+    path("tasks/", include("task.urls"), name="tasks"),
 ]
 

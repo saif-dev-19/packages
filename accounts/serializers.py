@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import User
 
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 class RegisterSerializer(serializers.Serializer):
     email = serializers.EmailField()
@@ -56,3 +57,17 @@ class OtpVerifySerializer(serializers.Serializer):
     email = serializers.EmailField()
     purpose = serializers.ChoiceField(choices=OtpPurpose.choices) #It will be given from frontend hardcoded to know the purpose of OTP 
     otp = serializers.CharField(max_length=6)
+
+
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+
+        token["email"] = user.email or ""
+        token["first_name"] = getattr(user, "first_name", "") or ""
+        token["last_name"] = getattr(user, "last_name", "") or ""
+
+        return token

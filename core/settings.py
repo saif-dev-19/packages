@@ -44,6 +44,8 @@ INSTALLED_APPS = [
     'accounts',
     'otp',
     "rest_framework_simplejwt.token_blacklist",
+    'task',
+    "django_filters",
 ]
 
 MIDDLEWARE = [
@@ -80,12 +82,30 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+#========================== 
+#DB settings are now in config.py and imported as Config.ENGINE, Config.NAME, etc.
+#==========================
+
+DB_ENGINE = Config.DB_ENGINE
+
+if DB_ENGINE == "django.db.backends.sqlite3":
+    DATABASES = {
+        'default': {
+            'ENGINE': DB_ENGINE,
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": Config.DB_ENGINE,
+            "NAME": Config.DB_NAME,
+            "USER": Config.DB_USER,
+            "PASSWORD": Config.DB_PASSWORD,
+            "HOST": Config.DB_HOST,
+            "PORT": Config.DB_PORT,
+        }
+    }
 
 
 # Password validation
@@ -148,12 +168,19 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
-    "DEFAULT_THROTTLE_CLASSES": [
-        "rest_framework.throttling.UserRateThrottle",
+    # "DEFAULT_THROTTLE_CLASSES": [
+    #     "rest_framework.throttling.UserRateThrottle",
+    # ],
+    # "DEFAULT_THROTTLE_RATES": {
+    #     "user": "5/min",
+    # },
+    "DEFAULT_FILTER_BACKENDS": [
+        "django_filters.rest_framework.DjangoFilterBackend",
+        "rest_framework.filters.SearchFilter",
+        "rest_framework.filters.OrderingFilter",
     ],
-    "DEFAULT_THROTTLE_RATES": {
-        "user": "5/min",
-    },
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 10,
 }
 
 # ========================================
@@ -165,6 +192,8 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": Config.AUTH_HEADER_TYPES,
 }
 SIMPLE_JWT["BLACKLIST_AFTER_ROTATION"] = Config.BLACKLIST_AFTER_ROTATION
+JWT_SHARED_SECRET = Config.JWT_SHARED_SECRET
+JWT_ALGORITHM = Config.JWT_ALGORITHM
 
 # ========================================
 # Redis Cache Settings
@@ -182,6 +211,14 @@ CACHES = {
 REDIS_HOST = Config.REDIS_URL.split("//")[1].split(":")[0]
 REDIS_PORT = Config.REDIS_PORT
 REDIS_DB = Config.REDIS_DB
-# ========================================
-# Other settings from config
-# ========================================
+
+
+#========================================
+#Celery settings
+#========================================
+CELERY_BROKER_URL = Config.CELERY_BROKER_URL
+CELERY_RESULT_BACKEND = Config.CELERY_RESULT_BACKEND
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = "UTC"
