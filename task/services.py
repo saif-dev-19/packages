@@ -1,9 +1,27 @@
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import exceptions
+import logging
 
 from .models import Task, TaskStatus
-from .tasks import send_task_completed_event
+from utils.email import send_purpose_email
+
+logger = logging.getLogger(__name__)
+
+
+def send_task_completed_email(*, task_id: int, title: str, email: str) -> None:
+    if not email:
+        logger.warning("Task completed email skipped because email is empty. task_id=%s", task_id)
+        return
+
+    subject = "Task completed"
+    text_content = f"Your task '{title}' has been marked as completed."
+
+    send_purpose_email(
+        to_email=email,
+        subject=subject,
+        text_content=text_content,
+    )
 
 
 def complete_task(*, task: Task) -> Task:
@@ -15,14 +33,16 @@ def complete_task(*, task: Task) -> Task:
         task.completed_at = timezone.now()
         task.save(update_fields=["status", "completed_at", "updated_at"])
 
+        task_id = task.id
+        title = task.title
+        email = task.created_by_email
+
         transaction.on_commit(
-            lambda: send_task_completed_event.delay(
-                task_id=task.id,
-                user_id=task.created_by_user_id,
-                title=task.title,
-                email=task.created_by_email,
+            lambda: send_task_completed_email(
+                task_id=task_id,
+                title=title,
+                email=email,
             )
         )
-        print(f"Task {task.id} marked as completed. Event scheduled to be sent.{task.created_by_email}")
 
     return task

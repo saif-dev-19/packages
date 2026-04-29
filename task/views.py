@@ -4,7 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from .models import Task, TaskStatus
 from rest_framework.validators import ValidationError
-
+from utils.response import common_response
 from .models import Task
 from .serializers import (
     TaskCreateUpdateSerializer,
@@ -61,11 +61,9 @@ class TaskViewSet(viewsets.ModelViewSet):
         task = self.get_object()
         task = complete_task(task=task)
 
-        return Response(
-            {
-                "detail": "Task marked as completed.",
-                "task_id": task.id,
-                "completed_at": task.completed_at,
-            },
-            status=status.HTTP_200_OK,
+        return common_response(
+            success=True,
+            message="Task marked as completed",
+            data=TaskDetailSerializer(task).data,
+            status_code=status.HTTP_200_OK
         )

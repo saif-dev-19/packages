@@ -1,5 +1,5 @@
 from .models import OtpPurpose
-from core.email import send_purpose_email
+from utils.email import send_purpose_email
 from django.template.loader import render_to_string
 
 
