@@ -4,6 +4,7 @@ from rest_framework import exceptions
 import logging
 
 from .models import Task, TaskStatus
+from .tasks import send_task_completed_event
 from utils.email import send_purpose_email
 
 logger = logging.getLogger(__name__)
@@ -38,11 +39,33 @@ def complete_task(*, task: Task) -> Task:
         email = task.created_by_email
 
         transaction.on_commit(
-            lambda: send_task_completed_email(
+            lambda: enqueue_task_completed_email(
                 task_id=task_id,
+                user_id=task.created_by_user_id,
                 title=title,
                 email=email,
             )
         )
 
     return task
+
+
+def enqueue_task_completed_email(*, task_id: int, user_id: int, title: str, email: str) -> None:
+    try:
+        send_task_completed_event.delay(
+            task_id=task_id,
+            user_id=user_id,
+            title=title,
+            email=email,
+        )
+    except Exception:
+        logger.exception(
+            "Could not enqueue task completed email. Sending directly. task_id=%s user_id=%s",
+            task_id,
+            user_id,
+        )
+        send_task_completed_email(
+            task_id=task_id,
+            title=title,
+            email=email,
+        )

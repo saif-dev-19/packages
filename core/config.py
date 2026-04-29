@@ -20,7 +20,7 @@ class Config:
 
     # Redis Cache
     REDIS_URL: str = config("REDIS_URL", default="redis://redis:6379/1")
-    REDIS_HOST: str = config("REDIS_HOST", default="127.0.0.1")
+    REDIS_HOST: str = config("REDIS_HOST", default="redis")
     REDIS_PORT: int = config("REDIS_PORT", default=6379, cast=int)
     REDIS_DB: int = config("REDIS_DB", default=1, cast=int)
 

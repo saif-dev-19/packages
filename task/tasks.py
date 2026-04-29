@@ -8,7 +8,6 @@ logger = logging.getLogger(__name__)
 
 @shared_task(bind=True, autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
 def send_task_completed_event(self, task_id, user_id, title, email=""):
-    print(f"Scheduling task completed event for task_id={task_id} to be sent to {email}")
     logger.info(
         "Task completed event triggered. task_id=%s user_id=%s title=%s email=%s",
         task_id,
@@ -33,7 +32,7 @@ def send_task_completed_event(self, task_id, user_id, title, email=""):
 
     subject = "Task completed"
     text_content = f"Your task '{title}' has been marked as completed."
-    print(f"Sending task completed email to {email} for task_id={task_id}")
+
     send_purpose_email(
         to_email=email,
         subject=subject,

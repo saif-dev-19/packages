@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
+from urllib.parse import urlparse
 from core.config import Config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -211,9 +212,10 @@ CACHES = {
     }
 }
 
-REDIS_HOST = Config.REDIS_URL.split("//")[1].split(":")[0]
-REDIS_PORT = Config.REDIS_PORT
-REDIS_DB = Config.REDIS_DB
+_redis_url = urlparse(Config.REDIS_URL)
+REDIS_HOST = _redis_url.hostname or Config.REDIS_HOST
+REDIS_PORT = _redis_url.port or Config.REDIS_PORT
+REDIS_DB = int((_redis_url.path or "/0").lstrip("/") or Config.REDIS_DB)
 
 
 #========================================
