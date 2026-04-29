@@ -142,7 +142,8 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 
 
@@ -165,6 +166,8 @@ DEFAULT_FROM_EMAIL = Config.DEFAULT_FROM_EMAIL
 #Rest Framework settings
 #====================================
 REST_FRAMEWORK = {
+    "EXCEPTION_HANDLER": "utils.exceptions.custom_exception_handler",
+
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),

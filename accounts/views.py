@@ -3,10 +3,7 @@ from datetime import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-
 from otp.email_services import send_otp_email
-from utils.response import error_response, success_response
-
 from .serializers import ChangePasswordSerializer, RegisterSerializer, ResetPasswordConfirmSerializer,ResetPasswordSerializer
 from .models import User
 from otp.choices import OtpPurpose, OtpChannel
@@ -19,6 +16,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import CustomTokenObtainPairSerializer
+from utils.response import common_response
 
 
 
@@ -51,9 +49,11 @@ class RegisterView(APIView):
             user, created = User.objects.get_or_create(email=email)
 
             if not created and user.is_active:
-                return success_response(
-                    message="Email already registered",
-                    http_status=status.HTTP_400_BAD_REQUEST,
+                return common_response(
+                    success=False,
+                    message="Email already exists and is verified",
+                    errors={"email": ["Email already exists and is verified"]},
+                    status_code=status.HTTP_400_BAD_REQUEST
                 )
 
             user.set_password(password)
@@ -69,15 +69,17 @@ class RegisterView(APIView):
         )
 
         if not success:
-            return error_response(
+            return common_response(
+                success=False,
+                message=msg,
                 errors={"error": msg},
-                message="OTP could not be sent",
-                http_status=status.HTTP_400_BAD_REQUEST
+                status_code=status.HTTP_400_BAD_REQUEST
             )
 
-        return success_response(
-            message="OTP sent successfully",
-            http_status=status.HTTP_201_CREATED
+        return common_response(
+            success=True,
+            message="Registration successful. Please verify your email with the OTP sent.",
+            status_code=status.HTTP_201_CREATED
         )
 
 #============================
@@ -91,19 +93,36 @@ class LoginView(APIView):
         user = authenticate(request, email=email, password=password)
 
         if not user:
-            return error_response(errors={"error": "Invalid credentials"}, http_status=status.HTTP_401_UNAUTHORIZED)
+            return common_response(
+                success=False,
+                message="Invalid email or password",
+                errors={"error": "Invalid email or password"},
+                status_code=status.HTTP_401_UNAUTHORIZED
+            )
 
         if not user.is_active:
-            return error_response(errors={"error": "Account not verified"}, http_status=status.HTTP_403_FORBIDDEN)
+            return common_response(
+                success=False,
+                message="Account not verified",
+                errors={"error": "Account not verified"},
+                status_code=status.HTTP_403_FORBIDDEN
+            )
 
         refresh = RefreshToken.for_user(user)
 
-        return success_response(
+        return common_response(
+            success=True,
+            message="Login successful",
             data={
                 "access": str(refresh.access_token),
                 "refresh": str(refresh),
+                "user": {
+                    "id": user.id,
+                    "email": user.email,
+                    "is_staff": user.is_staff,
+                }
             },
-            message="Login successful"
+            status_code=status.HTTP_200_OK
         )
 
 #=============================
@@ -121,12 +140,21 @@ class ChangePasswordView(APIView):
         new_password = serializer.validated_data["new_password"]
 
         if not user.check_password(old_password):
-            return error_response(errors={"error": "Old password is incorrect"}, http_status=status.HTTP_400_BAD_REQUEST)
+            return common_response(
+                success=False,
+                message="Old password is incorrect",
+                errors={"error": "Old password is incorrect"},
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
 
         user.set_password(new_password)
         user.save()
 
-        return success_response(message="Password changed successfully")
+        return common_response(
+            success=True,
+            message="Password changed successfully",
+            status_code=status.HTTP_200_OK
+        )
     
 
 #=============================
@@ -152,14 +180,17 @@ class ResetPasswordRequestView(APIView):
             )
 
             if not success:
-                return error_response(
+                return common_response(
+                    success=False,
+                    message=msg,
                     errors={"error": msg},
-                    http_status=status.HTTP_400_BAD_REQUEST
+                    status_code=status.HTTP_400_BAD_REQUEST
                 )
 
-        return success_response(
+        return common_response(
+            success=True,
             message="If the email exists, an OTP has been sent",
-            http_status=status.HTTP_200_OK
+            status_code=status.HTTP_200_OK
         )
 
 
@@ -179,9 +210,11 @@ class ResetPasswordConfirmView(APIView):
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
-            return error_response(
+            return common_response(
+                success=False,
+                message="Invalid email",
                 errors={"error": "Invalid email"},
-                http_status=status.HTTP_400_BAD_REQUEST
+                status_code=status.HTTP_400_BAD_REQUEST
             )
 
         success, message = OTPService.verify_otp(
@@ -191,17 +224,21 @@ class ResetPasswordConfirmView(APIView):
         )
 
         if not success:
-            return error_response(
+            return common_response(
+                success=False,
+                message=message,
                 errors={"error": message},
-                http_status=status.HTTP_400_BAD_REQUEST
+                status_code=status.HTTP_400_BAD_REQUEST
             )
+
 
         user.set_password(new_password)
         user.save()
 
-        return success_response(
+        return common_response(
+            success=True,
             message="Password reset successfully",
-            http_status=status.HTTP_200_OK
+            status_code=status.HTTP_200_OK
         )
 
 
@@ -217,9 +254,18 @@ class LogoutView(APIView):
             token = RefreshToken(refresh_token)
             token.blacklist()
 
-            return success_response(message="Logged out successfully")
+            return common_response(
+                success=True,
+                message="Logged out successfully",
+                status_code=status.HTTP_200_OK
+            )
         except Exception:
-            return error_response(errors={"error": "Invalid token"}, http_status=status.HTTP_400_BAD_REQUEST)
+            return common_response(
+                success=False,
+                message="Invalid token",
+                errors={"error": "Invalid token"},
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
 
 
 #============================
@@ -255,8 +301,17 @@ class OTPView(APIView):
         success, msg = OTPService.send_otp(email, purpose, channel)
 
         if not success:
-            return Response({"error": msg}, status=status.HTTP_400_BAD_REQUEST)
-        return Response({"message": msg}, status=status.HTTP_200_OK)
+            return common_response(
+                success=False,
+                message=msg,
+                errors={"error": msg},
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        return common_response(
+            success=True,
+            message=msg,
+            status_code=status.HTTP_200_OK
+        )
 
 
 class OTPVerifyView(APIView):
@@ -283,5 +338,14 @@ class OTPVerifyView(APIView):
                     pass
 
         if not success:
-            return Response({"error": msg}, status=status.HTTP_400_BAD_REQUEST)
-        return Response({"message": msg}, status=status.HTTP_200_OK)
+            return common_response(
+                success=False,
+                message=msg,
+                errors={"error": msg},
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        return common_response(
+            success=True,
+            message=msg,
+            status_code=status.HTTP_200_OK
+        )

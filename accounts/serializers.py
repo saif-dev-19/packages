@@ -51,7 +51,7 @@ from otp.choices import OtpPurpose, OtpChannel
 class OtpSerializer(serializers.Serializer):
     email = serializers.EmailField()
     purpose = serializers.ChoiceField(choices=OtpPurpose.choices)   #It will be given from frontend hardcoded to know the purpose of OTP 
-    channel = serializers.ChoiceField(choices=OtpChannel.choices)  #It will be given from frontend hardcoded to know the channel of OTP (email/phone)
+    channel = serializers.ChoiceField(choices=OtpChannel.choices,default = OtpChannel.EMAIL)  #It will be given from frontend hardcoded to know the channel of OTP (email/phone)
 
 class OtpVerifySerializer(serializers.Serializer):
     email = serializers.EmailField()
