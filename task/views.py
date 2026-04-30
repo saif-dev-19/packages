@@ -12,10 +12,12 @@ from .serializers import (
     TaskListSerializer,
 )
 from .services import complete_task
+from django.core.cache import cache
 
 
 class TaskViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
+    throttle_classes = []
 
     filterset_fields = ["status", "priority"]
     search_fields = ["title"]
@@ -41,12 +43,36 @@ class TaskViewSet(viewsets.ModelViewSet):
         if self.action == "retrieve":
             return TaskDetailSerializer
         return TaskCreateUpdateSerializer
+    
+    def list(self, request, *args, **kwargs):
+        cache_key = f"task_list_user_{request.user.id}"
+
+        data = cache.get(cache_key)
+        if data is not None:
+            return Response(data)
+
+        queryset = self.filter_queryset(self.get_queryset())
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            data = serializer.data
+            cache.set(cache_key, data, timeout=60)
+            return self.get_paginated_response(data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        data = serializer.data
+
+        cache.set(cache_key, data, timeout=60)
+
+        return Response(data)
 
     def perform_create(self, serializer):
         serializer.save(
             created_by_user_id=self.request.user.id,
             created_by_email=self.request.user.email,
         )
+        cache.delete(f"task_list_user_{self.request.user.id}")
     
     
     def perform_update(self, serializer):
@@ -54,6 +80,12 @@ class TaskViewSet(viewsets.ModelViewSet):
         if status_before == TaskStatus.COMPLETED and serializer.validated_data.get("status") != TaskStatus.COMPLETED:
             raise ValidationError("Cannot change status of a completed task.")
         serializer.save()
+        cache.delete(f"task_list_user_{self.request.user.id}")
+
+    def perform_destroy(self, instance):
+        cache.delete(f"task_list_user_{self.request.user.id}")
+        return super().perform_destroy(instance)
+
 
 
     @action(detail=True, methods=["post"], url_path="complete")
