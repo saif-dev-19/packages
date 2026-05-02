@@ -29,6 +29,7 @@ def send_task_completed_event(self, task_id, user_id, title, email=""):
             "email": email,
             "email_sent": False,
         }
+    
 
     subject = "Task completed"
     text_content = f"Your task '{title}' has been marked as completed."
