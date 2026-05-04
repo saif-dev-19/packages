@@ -49,7 +49,12 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         data = cache.get(cache_key)
         if data is not None:
-            return Response(data)
+            return common_response(
+                success=True,
+                message="Task list retrieved successfully from cache",
+                data=data,
+                status_code=status.HTTP_200_OK
+            )
 
         queryset = self.filter_queryset(self.get_queryset())
 
@@ -65,7 +70,12 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         cache.set(cache_key, data, timeout=60)
 
-        return Response(data)
+        return common_response(
+            success=True,
+            message="Task list retrieved successfully",
+            data=data,
+            status_code=status.HTTP_200_OK
+        )
 
     def perform_create(self, serializer):
         serializer.save(
