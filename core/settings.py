@@ -84,7 +84,13 @@ SITE_ID = 1
 ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_AUTHENTICATION_METHOD = 'email'
-
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USERNAME_REQUIRED = False
+SOCIALACCOUNT_AUTO_SIGNUP = True
+# redirect URL after login
+LOGIN_REDIRECT_URL = 'http://localhost:8080/api/tasks/tasks/'
+LOGOUT_REDIRECT_URL = '/'
 
 
 ROOT_URLCONF = 'core.urls'
@@ -199,6 +205,7 @@ REST_FRAMEWORK = {
 
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
+        'rest_framework.authentication.SessionAuthentication',
     ),
     # "DEFAULT_THROTTLE_CLASSES": [
     #     "rest_framework.throttling.UserRateThrottle",
