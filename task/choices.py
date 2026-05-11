@@ -5,6 +5,7 @@ class TaskStatus(models.TextChoices):
     PENDING = "pending", "Pending"
     IN_PROGRESS = "in_progress", "In Progress"
     COMPLETED = "completed", "Completed"
+    OVERDUE = "overdue", "Overdue"  
 
 
 class TaskPriority(models.TextChoices):

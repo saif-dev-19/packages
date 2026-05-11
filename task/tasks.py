@@ -1,5 +1,8 @@
+from datetime import timezone
+
 from celery import shared_task
 import logging
+from .models import Task
 
 from utils.email import send_purpose_email
 
@@ -52,3 +55,15 @@ def send_task_completed_event(self, task_id, user_id, title, email=""):
         "email": email,
         "email_sent": True,
     }   
+
+
+
+@shared_task
+def mark_overdue_tasks():
+    overdue_tasks = Task.objects.filter(
+                        status__in=["pending","in_progress"], 
+                        due_date__lt=timezone.now()
+                    )
+    updated_count = overdue_tasks.update(status="overdue")
+
+    return f"{updated_count} tasks marked overdue"
