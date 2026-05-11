@@ -262,3 +262,14 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "UTC"
+
+
+from celery.schedules import crontab
+# crontab(minute="*/10")
+
+CELERY_BEAT_SCHEDULE = {
+    "mark-overdue-every-10-minutes": {
+        "task": "task.tasks.mark_overdue_tasks",
+        "schedule": 100.0,
+    },
+}
