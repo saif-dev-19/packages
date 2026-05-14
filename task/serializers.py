@@ -1,5 +1,22 @@
 from rest_framework import serializers
-from .models import Task, TaskStatus, TaskPriority
+from django.utils import timezone
+from datetime import datetime
+from zoneinfo import ZoneInfo
+from datetime import timezone as dt_timezone
+from .models import Task
+from .choices import TaskStatus, TaskPriority
+from django.utils import timezone
+from datetime import datetime
+
+
+def make_aware_utc(value):
+    if isinstance(value, str):
+        value = datetime.fromisoformat(value)
+
+    if timezone.is_naive(value):
+        value = timezone.make_aware(value, timezone.utc)
+
+    return value
 
 
 class TaskListSerializer(serializers.ModelSerializer):
@@ -43,6 +60,7 @@ class TaskDetailSerializer(serializers.ModelSerializer):
 
 
 class TaskCreateUpdateSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = Task
         fields = [
@@ -55,15 +73,20 @@ class TaskCreateUpdateSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id"]
 
+    def validate_due_date(self, value):
+        return make_aware_utc(value)
+
     def validate_status(self, value):
         if value not in TaskStatus.values:
             raise serializers.ValidationError(
                 f"Invalid status. Allowed values: {', '.join(TaskStatus.values)}"
             )
+
         if value == TaskStatus.COMPLETED and self.instance is None:
             raise serializers.ValidationError(
                 "Cannot create a task with status 'completed'. Use the complete endpoint instead."
             )
+
         return value
 
     def validate_priority(self, value):
@@ -75,14 +98,15 @@ class TaskCreateUpdateSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         due_date = attrs.get("due_date")
+
         if due_date is not None and self.instance is None and due_date <= self._now():
             raise serializers.ValidationError(
                 {"due_date": "Due date must be in the future."}
             )
 
         return attrs
-    
+
     @staticmethod
     def _now():
-        from django.utils import timezone
         return timezone.now()
+    
