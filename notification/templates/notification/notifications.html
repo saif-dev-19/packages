@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h2>Notifications 🔔</h2>
+
+<ul id="notification-list"></ul>
+
+<script>
+    const socket = new WebSocket(
+        "ws://" + window.location.host + "/ws/notifications/"
+    );
+
+    socket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+
+        // Create list item
+        const li = document.createElement("li");
+        li.innerHTML = `<b>${data.title}</b>: ${data.message}`;
+
+        document.getElementById("notification-list").prepend(li);
+
+        // Optional toast
+        alert(data.title + " - " + data.message);
+    };
+
+    socket.onclose = function(e) {
+        console.log("WebSocket closed");
+    };
+</script>
+
+{% endblock %}

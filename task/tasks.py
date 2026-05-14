@@ -3,6 +3,21 @@ from django.utils import timezone
 from celery import shared_task
 import logging
 from .models import Task
+from .choices import TaskStatus
+from django.core.cache import cache
+from celery import shared_task
+from django.utils import timezone
+
+from .models import Task
+from .choices import TaskStatus
+from notification.models import Notification
+from django.db import transaction
+from notification.tasks import send_overdue_email
+
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
+channel_layer = get_channel_layer()
+
 
 from utils.email import send_purpose_email
 
@@ -57,29 +72,55 @@ def send_task_completed_event(self, task_id, user_id, title, email=""):
     }   
 
 
-from .choices import TaskStatus
-from django.core.cache import cache
 
 @shared_task
 def mark_overdue_tasks():
     overdue_tasks = Task.objects.filter(
-        status__in=[
-            TaskStatus.PENDING,
-            TaskStatus.IN_PROGRESS
-        ],
+        status__in=[TaskStatus.PENDING, TaskStatus.IN_PROGRESS],
         due_date__lt=timezone.now()
     )
 
-    user_ids = overdue_tasks.values_list(
-        "created_by_user_id",
-        flat=True
-    ).distinct()
-    print(f"Marking {overdue_tasks.count()} tasks as overdue for users: {list(user_ids)}")
-    updated_count = overdue_tasks.update(
-        status=TaskStatus.OVERDUE
+    if not overdue_tasks.exists():
+        return "No tasks marked overdue"
+
+    user_ids = list(overdue_tasks.values_list("created_by_user_id", flat=True).distinct())
+
+    # 1. update status
+    updated_count = overdue_tasks.update(status=TaskStatus.OVERDUE)
+
+    # 2. create notifications
+    notifications = []
+
+    for task in overdue_tasks:
+        notifications.append(
+            Notification(
+                user_id=task.created_by_user_id,
+                title="Task Overdue",
+                message=f"Your task '{task.title}' is now overdue."
+            )
+        )
+    
+    send_overdue_email.delay(
+        email=task.created_by_email,
+        task_title=task.title,
     )
 
-    for user_id in user_ids:
-        cache.delete(f"task_list_user_{user_id}")
+    #For Notification
+    Notification.objects.bulk_create(notifications)
 
-    return f"{updated_count} tasks marked overdue"
+    async_to_sync(channel_layer.group_send)(
+        f"user_{task.created_by_user_id}",
+            {
+                "type": "send_notification",
+                "data": {
+                    "title": "Task Overdue",
+                    "message": f"Task '{task.title}' is overdue"
+                    }
+            }
+        )
+
+    return f"{updated_count} tasks marked overdue + notifications created"
+
+
+
+

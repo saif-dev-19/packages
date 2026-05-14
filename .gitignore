@@ -10,3 +10,7 @@ db.sqlite3
 
 # ====== Python Bytecode ======
 sec.txt
+
+celerybeat-schedule
+__pycache__/
+*.pyc

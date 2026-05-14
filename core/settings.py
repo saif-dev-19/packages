@@ -28,7 +28,7 @@ SECRET_KEY = Config.SECRET_KEY
 ALLOWED_HOSTS = []
 
 AUTH_USER_MODEL = "accounts.User"
-
+ASGI_APPLICATION = "core.asgi.application"
 
 # Application definition
 
@@ -40,9 +40,11 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'core',
+    'channels',
     'rest_framework',
     'api',
     'accounts',
+    'notification',
     'otp',
     "rest_framework_simplejwt.token_blacklist",
     'task',
@@ -272,4 +274,14 @@ CELERY_BEAT_SCHEDULE = {
         "task": "task.tasks.mark_overdue_tasks",
         "schedule": 100.0,
     },
+}
+
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("redis", 6379)],
+        },
+    }
 }
