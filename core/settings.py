@@ -272,7 +272,7 @@ from celery.schedules import crontab
 CELERY_BEAT_SCHEDULE = {
     "mark-overdue-every-10-minutes": {
         "task": "task.tasks.mark_overdue_tasks",
-        "schedule": 100.0,
+        "schedule": 10000.0,
     },
 }
 
