@@ -31,4 +31,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
     async def send_notification(self, event):
         print("NOTIFICATION RECEIVED:", event)
 
-        await self.send(text_data=json.dumps(event["data"]))
+        await self.send(text_data=json.dumps({
+            'message': event['message'],
+            'msg' : "you are connected to notification channel"
+        }))

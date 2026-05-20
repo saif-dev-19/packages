@@ -6,27 +6,28 @@
 
 <ul id="notification-list"></ul>
 
-<script>
-    const socket = new WebSocket(
-        "ws://" + window.location.host + "/ws/notifications/"
-    );
+<script type="text/javascript">
+        const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+        const url = `${protocol}://${window.location.host}/ws/notifications/`;
 
-    socket.onmessage = function(e) {
-        const data = JSON.parse(e.data);
+        const chatSocket = new WebSocket(url);
 
-        // Create list item
-        const li = document.createElement("li");
-        li.innerHTML = `<b>${data.title}</b>: ${data.message}`;
+        chatSocket.onopen = function () {
+            console.log("WebSocket connected");
+        };
 
-        document.getElementById("notification-list").prepend(li);
+        chatSocket.onmessage = function (e) {
+            let data = JSON.parse(e.data);
+            console.log("Data:", data);
+        };
 
-        // Optional toast
-        alert(data.title + " - " + data.message);
-    };
+        chatSocket.onerror = function (e) {
+            console.error("WebSocket error:", e);
+        };
 
-    socket.onclose = function(e) {
-        console.log("WebSocket closed");
-    };
+        chatSocket.onclose = function () {
+            console.warn("WebSocket closed");
+        };
 </script>
 
 {% endblock %}
