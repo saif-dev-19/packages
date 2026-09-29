@@ -30,6 +30,11 @@ ALLOWED_HOSTS = []
 AUTH_USER_MODEL = "accounts.User"
 ASGI_APPLICATION = "core.asgi.application"
 
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:8080",
+]
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -112,7 +117,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'core.wsgi.application'
+# WSGI_APPLICATION = 'core.wsgi.application'
 
 
 

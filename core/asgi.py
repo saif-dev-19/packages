@@ -24,20 +24,43 @@ https://docs.djangoproject.com/en/6.0/howto/deployment/asgi/
 #     ),
 # })
 
+# import os
+# from django.core.asgi import get_asgi_application
+# from channels.routing import ProtocolTypeRouter, URLRouter
+# from channels.auth import AuthMiddlewareStack
+# from notification import routing
+
+# os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
+
+# django_asgi_app = get_asgi_application()
+
+# application = ProtocolTypeRouter({
+#     "http": django_asgi_app,
+
+#     "websocket": AuthMiddlewareStack(
+#         URLRouter(
+#             routing.websocket_urlpatterns
+#         )
+#     ),
+# })
+
+
 import os
-from django.core.asgi import get_asgi_application
-from channels.routing import ProtocolTypeRouter, URLRouter
-from channels.auth import AuthMiddlewareStack
-from notification import routing
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
 
+from django.core.asgi import get_asgi_application
+from channels.routing import ProtocolTypeRouter, URLRouter
+
 django_asgi_app = get_asgi_application()
+
+from notification import routing
+from notification.middleware import QueryAuthMiddleware
 
 application = ProtocolTypeRouter({
     "http": django_asgi_app,
 
-    "websocket": AuthMiddlewareStack(
+    "websocket": QueryAuthMiddleware(
         URLRouter(
             routing.websocket_urlpatterns
         )
