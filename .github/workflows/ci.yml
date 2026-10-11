@@ -37,7 +37,7 @@ jobs:
           DB_NAME: "ci_db"
           DB_USER: "ci_user"
           DB_PASSWORD: "ci-placeholder-password"
-        run: python manage.py check
+        run: python manage.py test
 
 
       - name: Build Docker image
