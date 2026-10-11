@@ -26,7 +26,19 @@ jobs:
       - name: Django system check
         env:
           DEBUG: "True"
+          EMAIL_BACKEND: "django.core.mail.backends.locmem.EmailBackend"
+          EMAIL_HOST: "localhost"
+          EMAIL_PORT: "587"
+          EMAIL_USE_TLS: "False"
+          EMAIL_HOST_USER: "ci@example.com"
+          EMAIL_HOST_PASSWORD: "ci-placeholder-password"
+          DEFAULT_FROM_EMAIL: "ci@example.com"
+          JWT_SHARED_SECRET: "ci-only-test-secret-not-for-production"
+          DB_NAME: "ci_db"
+          DB_USER: "ci_user"
+          DB_PASSWORD: "ci-placeholder-password"
         run: python manage.py check
+
 
       - name: Build Docker image
         run: docker build -t packages-ci:latest .
