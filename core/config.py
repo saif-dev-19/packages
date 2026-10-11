@@ -27,7 +27,7 @@ class Config:
 
     CELERY_BROKER_URL = config("CELERY_BROKER_URL", default="redis://redis:6379/0")
     CELERY_RESULT_BACKEND = config("CELERY_RESULT_BACKEND", default="redis://redis:6379/0")
-    CELERY_ACCEPT_CONTENT: list = config("CELERY_ACCEPT_CONTENT", default=["json"], cast=Csv())
+    CELERY_ACCEPT_CONTENT: list = config("CELERY_ACCEPT_CONTENT", default="json", cast=Csv())
     CELERY_TASK_SERIALIZER: str = config("CELERY_TASK_SERIALIZER", default="json")
     CELERY_RESULT_SERIALIZER: str = config("CELERY_RESULT_SERIALIZER", default="json")
     CELERY_TIMEZONE: str = config("CELERY_TIMEZONE", default="UTC")
